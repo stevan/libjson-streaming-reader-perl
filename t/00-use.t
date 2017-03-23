@@ -1,4 +1,12 @@
+#!perl
 
-use Test::More tests => 1;
-use_ok 'JSON::Streaming::Reader';
+use strict;
+use warnings;
 
+use Test::More;
+
+BEGIN {
+    use_ok('JSON::Streaming::Reader');
+}
+
+done_testing;

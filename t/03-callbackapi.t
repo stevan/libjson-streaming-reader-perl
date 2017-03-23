@@ -1,6 +1,14 @@
+#!perl
 
-use Test::More tests => 1;
+use strict;
+use warnings;
+
+use Test::More;
 use JSON::Streaming::Reader::TestUtil;
+
+BEGIN {
+    use_ok('JSON::Streaming::Reader');
+}
 
 # Test that the callback API generates the same results as the pull API
 # (since we already tested the pull API in a previous script)
@@ -29,6 +37,8 @@ $jsonr = JSON::Streaming::Reader->for_string($input);
 $jsonr->process_tokens(%callbacks);
 
 is_deeply(\@callback_tokens, \@pull_tokens, "Callback API output matches pull API output");
+
+done_testing;
 
 __END__
 

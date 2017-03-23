@@ -1,6 +1,14 @@
+#!perl
 
-use Test::More tests => 62;
+use strict;
+use warnings;
+
+use Test::More;
 use JSON::Streaming::Reader::TestUtil;
+
+BEGIN {
+    use_ok('JSON::Streaming::Reader');
+}
 
 compare_event_parse("");
 compare_event_parse(" ");
@@ -78,3 +86,4 @@ compare_event_parse("1.2",".2");
 compare_event_parse("1.2.","2");
 
 
+done_testing;

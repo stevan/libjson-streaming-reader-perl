@@ -1,27 +1,29 @@
+#!perl
 
 use strict;
 use warnings;
+
+use Test::More;
 use JSON::Streaming::Reader::TestUtil;
+
+BEGIN {
+    use_ok('JSON::Streaming::Reader');
+}
+
 use IO::Handle;
 use Data::Dumper;
 
-my %correct;
-
-BEGIN {
-    %correct = (
-        string => "world",
-        number => 2,
-        boolean => \1,
-        array => [ 1, 2, 3 ],
-        object => { "hello" => "world" },
-        complexArray => [
-            { "null" => undef },
-            [ 1, 2, \0 ],
-        ],
-    );
-    require 'Test/More.pm';
-    Test::More->import(tests => scalar(keys(%correct)));
-};
+my %correct = (
+    string => "world",
+    number => 2,
+    boolean => \1,
+    array => [ 1, 2, 3 ],
+    object => { "hello" => "world" },
+    complexArray => [
+        { "null" => undef },
+        [ 1, 2, \0 ],
+    ],
+);
 
 my $data = join('', <DATA>);
 my $jsonr = JSON::Streaming::Reader->for_string(\$data);
@@ -40,6 +42,8 @@ $jsonr->process_tokens(
         is_deeply($value, $expected, $name);
     },
 );
+
+done_testing;
 
 __END__
 

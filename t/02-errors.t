@@ -1,6 +1,14 @@
+#!perl
 
-use Test::More tests => 32;
+use strict;
+use warnings;
+
+use Test::More;
 use JSON::Streaming::Reader::TestUtil;
+
+BEGIN {
+    use_ok('JSON::Streaming::Reader');
+}
 
 test_parse "Unclosed object", "{", [
     [ 'start_object' ],
@@ -154,3 +162,4 @@ test_parse "Object with two properties missing comma", '{"property1":true "prope
     [ 'error', 'Unexpected string value' ],
 ];
 
+done_testing;

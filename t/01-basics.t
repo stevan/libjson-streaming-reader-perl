@@ -1,6 +1,14 @@
+#!perl
 
-use Test::More tests => 29;
+use strict;
+use warnings;
+
+use Test::More;
 use JSON::Streaming::Reader::TestUtil;
+
+BEGIN {
+    use_ok('JSON::Streaming::Reader');
+}
 
 test_parse "Empty string", "", [];
 
@@ -51,3 +59,4 @@ test_parse "Object containing a property whose value is an empty object", '{"hel
     [ 'end_object' ],
 ];
 
+done_testing;
