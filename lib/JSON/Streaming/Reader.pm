@@ -804,4 +804,12 @@ error is included in $string.
 This module doesn't do any buffering, and it expects the underlying
 stream to do appropriate read buffering if necessary.
 
+=head1 ACKNOWLEDGEMENTS
+
+This code, the original design and most all the docs is originally
+copyright 2009 Martin Atkins <mart@degeneration.co.uk>.
+
+B<NOTE:> Once this work is done I will work out the proper
+attribution.
+
 =cut
