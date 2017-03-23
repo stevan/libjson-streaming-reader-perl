@@ -41,6 +41,8 @@ our %HAS; BEGIN {
     )
 }
 
+## Constructors
+
 sub for_stream {
     my ($class, $stream) = @_;
     $class->new( stream => $stream );
@@ -51,15 +53,7 @@ sub for_string {
     return $class->new( stream => IO::Scalar->new(ref $value ? $value : \$value) );
 }
 
-sub process_tokens {
-    my ($self, %callbacks) = @_;
-
-    while (my $token = $self->get_token()) {
-        my $token_type = shift @$token;
-        my $callback = $callbacks{$token_type} or Carp::croak("No callback provided for $token_type tokens");
-        $callback->(@$token);
-    }
-}
+## pull API
 
 sub get_token {
     my ($self) = @_;
@@ -376,6 +370,35 @@ sub slurp {
     return $need_deref ? $$ret_item : $ret_item;
 }
 
+## some predicates
+
+sub in_object {
+    return $_[0]->_state->{in_object} ? 1 : 0;
+}
+
+sub in_array {
+    return $_[0]->_state->{in_array} ? 1 : 0;
+}
+
+sub in_property {
+    return $_[0]->_state->{in_property} ? 1 : 0;
+}
+
+sub made_value {
+    return $_[0]->_state->{made_value} ? 1 : 0;
+}
+
+sub done_comma {
+    return $_[0]->_state->{done_comma} ? 1 : 0;
+}
+
+sub can_start_value {
+    return 0 if $_[0]->in_property && $_[0]->made_value;
+    return $_[0]->in_object ? 0 : 1;
+}
+
+## Internals ...
+
 sub _get_char {
     my ($self) = @_;
 
@@ -600,26 +623,6 @@ sub _state {
     return $self->{state};
 }
 
-sub in_object {
-    return $_[0]->_state->{in_object} ? 1 : 0;
-}
-
-sub in_array {
-    return $_[0]->_state->{in_array} ? 1 : 0;
-}
-
-sub in_property {
-    return $_[0]->_state->{in_property} ? 1 : 0;
-}
-
-sub made_value {
-    return $_[0]->_state->{made_value} ? 1 : 0;
-}
-
-sub done_comma {
-    return $_[0]->_state->{done_comma} ? 1 : 0;
-}
-
 sub _set_made_value {
     $_[0]->_state->{made_value} = 1 unless $_[0]->_state == ROOT_STATE;
     $_[0]->_state->{done_comma} = 0 unless $_[0]->_state == ROOT_STATE;
@@ -628,13 +631,6 @@ sub _set_made_value {
 
 sub _set_done_comma {
     $_[0]->_state->{done_comma} = 1 unless $_[0]->_state == ROOT_STATE;
-}
-
-sub can_start_value {
-
-    return 0 if $_[0]->in_property && $_[0]->made_value;
-
-    return $_[0]->in_object ? 0 : 1;
 }
 
 sub _expecting_property {
@@ -651,208 +647,146 @@ JSON::Streaming::Reader - Read JSON strings in a streaming manner
 
 =head1 DESCRIPTION
 
-This module is effectively a tokenizer for JSON strings. With it you can process
-JSON strings in customizable ways without first creating a Perl data structure
-from the data. For some applications, such as those where the expected data
-structure is known ahead of time, this may be a more efficient way to process
-incoming data.
+This module is effectively a tokenizer for JSON strings. With it
+you can process JSON strings in customizable ways without first
+creating a Perl data structure from the data. For some applications,
+such as those where the expected data structure is known ahead of
+time, this may be a more efficient way to process incoming data.
 
 =head1 SYNOPSIS
 
-    my $jsonr = JSON::Streaming::Reader->for_stream($fh);
-    $jsonr->process_tokens(
-        start_object => sub {
-            ...
-        },
-        end_object => sub {
-
-        },
-        start_property => sub {
-            my ($name) = @_;
-        },
-        # ...
-    );
+    # TODO ...
 
 =head1 CREATING A NEW INSTANCE
 
-This module can operate on either an L<IO::Handle> instance or a string.
+This module can operate on either an L<IO::Handle> instance or
+a string.
 
 =head2 JSON::Streaming::Reader->for_stream($fh)
 
-Create a new instance that will read from the provided L<IO::Handle> instance.
-If you want to operate on a raw Perl filehandle, you currently must wrap it up in
-an IO::Handle instance yourself.
+Create a new instance that will read from the provided L<IO::Handle>
+instance. If you want to operate on a raw Perl filehandle, you
+currently must wrap it up in an IO::Handle instance yourself.
 
 =head2 JSON::Streaming::Reader->for_string(\$string)
 
-Create a new instance that will read from the provided string. Uses L<IO::Scalar>
-to make a stream-like wrapper around the string, and passes it into C<for_stream>.
-
-=head1 CALLBACK API
-
-The recommended way to use this library is via the callback-based API. In this
-API you make a single method call on the reader object and pass it a CODE ref
-for each token type. The reader object will then consume the entire stream
-and call the callback responding to the type of each token it encounters.
-
-An error token will be raised if an error is encountered during parsing.
-
-For tokens that themselves have data, the data items will be passed in as arguments
-to the callback.
-
-The handlers for the C<start_property>, C<start_array> and C<start_object> tokens
-may use the C<skip> method from the pull API, as described below, to avoid processing
-the remainder of the corresponding container.
-
-=head2 $jsonr->process_tokens(%callbacks)
-
-Read the whole stream and call a callback corresponding to each token encountered.
+Create a new instance that will read from the provided string. Uses
+L<IO::Scalar> to make a stream-like wrapper around the string, and
+passes it into C<for_stream>.
 
 =head1 PULL API
 
-A lower-level API is provided that allows the caller to pull single tokens
-from the stream as necessary. The callback API is implemented in terms of the
-pull API.
+A lower-level API is provided that allows the caller to pull single
+tokens from the stream as necessary. The callback API is implemented
+in terms of the pull API.
 
 =head2 $jsonr->get_token()
 
-Get the next token from the stream and advance. If the end of the stream is reached, this
-will return C<undef>. Otherwise it returns an ARRAY ref whose first member is the
-token type and its subsequent members are the token type's data items, if any.
+Get the next token from the stream and advance. If the end of the
+stream is reached, this will return C<undef>. Otherwise it returns
+an ARRAY ref whose first member is the token type and its subsequent
+members are the token type's data items, if any.
 
 =head2 $jsonr->skip()
 
-Quickly skip to the end of the current container. This can be used after a C<start_property>,
-C<start_array> or C<start_object> token is retrieved to signal that the remainder of the
-container is not actually required. The next call to get_token will return the token
-that comes after the corresponding C<end_> token for the current container. The corresponding
-C<end_> token is never returned.
+Quickly skip to the end of the current container. This can be used
+after a C<start_property>, C<start_array> or C<start_object> token
+is retrieved to signal that the remainder of the container is not
+actually required. The next call to get_token will return the token
+that comes after the corresponding C<end_> token for the current
+container. The corresponding C<end_> token is never returned.
 
-This is most useful for skipping over unrecognised properties when populating a known
-data structure.
+This is most useful for skipping over unrecognised properties when
+populating a known data structure.
 
-It is better to use this method than to implement skipping in the caller because skipping
-is done using a lightweight mechanism that does not need to allocate additional memory
-for tokens encountered during skipping. However, since this method uses a simpler
-state model it may cause less-intuitive error messages to be raised if there is a
-JSON syntax error within the content that is skipped.
+It is better to use this method than to implement skipping in the
+caller because skipping is done using a lightweight mechanism that
+does not need to allocate additional memory for tokens encountered
+during skipping. However, since this method uses a simpler state
+model it may cause less-intuitive error messages to be raised if
+there is a JSON syntax error within the content that is skipped.
 
-Note that errors encountered during skip are actually raised via C<die> rather than
-via the return value as with C<get_token>.
+Note that errors encountered during skip are actually raised via
+C<die> rather than via the return value as with C<get_token>.
 
 =head2 $jsonr->slurp()
 
 Skip to the end of the current container, capturing its value.
-This allows you to handle a C<start_property>,
-C<start_array> or C<start_object> token as if it were an C<add_>-type token,
+This allows you to handle a C<start_property>, C<start_array> or
+C<start_object> token as if it were an C<add_>-type token,
 dealing with its entire contents in one go.
 
 The next call to get_token will return the token
-that comes after the corresponding C<end_> token for the current container. The corresponding
-C<end_> token is never returned.
+that comes after the corresponding C<end_> token for the current
+container. The corresponding C<end_> token is never returned.
 
 The return value of this method call will be a Perl data structure
-representing the data that was skipped. This uses the same mappings as other
-popular Perl JSON libraries: objects become hashrefs, arrays become arrayrefs,
-strings and integers become scalars, boolean values become references to either
-1 or 0, and null becomes undef.
+representing the data that was skipped. This uses the same mappings
+as other popular Perl JSON libraries: objects become hashrefs, arrays
+become arrayrefs, strings and integers become scalars, boolean values
+become references to either 1 or 0, and null becomes undef.
 
-This is useful if there is a part of the tree that you would rather handle
-via an in-memory data structure like you'd get from a non-streaming JSON parser.
-It allows you to mix-and-match streaming parsing and one-shot parsing
-within a single data stream.
+This is useful if there is a part of the tree that you would rather
+handle via an in-memory data structure like you'd get from a
+non-streaming JSON parser. It allows you to mix-and-match streaming
+parsing and one-shot parsing within a single data stream.
 
-Note that errors encountered during skip are actually raised via C<die> rather than
-via the return value as with C<get_token>.
+Note that errors encountered during skip are actually raised via
+C<die> rather than via the return value as with C<get_token>.
 
-If you call this when in property state it will return the value of the property
-and parsing will continue after the corresponding C<end_property>. In object or
-array state it will return the object or array and continue after the corresponding
-C<end_object> or C<end_array>.
-
-=head1 EVENT-BASED API
-
-This module has an experimental event-based API which can be used to
-do streaming JSON processing in event-driven applications or those
-which do non-blocking I/O.
-
-In event-based mode it is the caller's responsibility to obtain data and
-when data is available provide it to the reader for processing. When
-enough data is available to unambigously represent a complete, atomic token
-a callback function is called in a similar fashion to the callback-based API
-described above.
-
-The event-based API implementation is currently somewhat hacky and
-inefficient. Caution is advised when making use of it in production
-applications, since it is currently merely a shim over the existing
-blocking API which may introduce strange packet-boundary bugs
-and other misbehavior.
-
-=head2 $jsonr->feed_buffer(\$data)
-
-The caller must call this method whenever new data becomes available
-for processing. A call to this method causes the reader to append
-the supplied data to any existing buffer and then try to consume as
-many tokens as possible from the buffer before returning. A callback
-will be run for each complete token encountered in the buffer.
-
-If the additional data does not allow a complete token to be recognised,
-the reader will retain the leftover buffer and attempt parsing again
-at the next call to C<feed_buffer>.
-
-In most cases this method will be called in response to some event,
-such as a notification that more data is available to read on a socket.
-
-=head2 $jsonr->signal_eof()
-
-The caller must call this method to signal the end of the data stream.
-This will cause the parser to process any remaining bytes in the buffer,
-possibly running token callbacks in the process, and then call the
-special eof callback.
-
-In most cases this method will be called in response to some event,
-such as a notification that a socket stream has been closed.
+If you call this when in property state it will return the value of
+the property and parsing will continue after the corresponding
+C<end_property>. In object or array state it will return the object
+or array and continue after the corresponding C<end_object> or
+C<end_array>.
 
 =head1 TOKEN TYPES
 
-There are two major classes of token types. Bracketing tokens enclose other tokens
-and come in pairs, named with C<start_> and C<end_> prefixes. Leaf tokens stand alone
-and have C<add_> prefixes.
+There are two major classes of token types. Bracketing tokens enclose
+other tokens and come in pairs, named with C<start_> and C<end_> prefixes.
+Leaf tokens stand alone and have C<add_> prefixes.
 
-For convenience the token type names match the method names used in the "raw" API
-of L<JSON::Streaming::Writer>, so it is straightforward to implement a streaming JSON
-normalizer by feeding the output from this module into the corresponding methods on that module.
-However, this module does have an additional special token type 'error' which is used
-to indicate tokenizing errors and does not have a corresponding method on the writer.
+For convenience the token type names match the method names used in
+the "raw" API of L<JSON::Streaming::Writer>, so it is straightforward
+to implement a streaming JSON normalizer by feeding the output from
+this module into the corresponding methods on that module. However,
+this module does have an additional special token type 'error' which
+is used to indicate tokenizing errors and does not have a corresponding
+method on the writer.
 
 =head2 start_object, end_object
 
-These token types delimit a JSON object. In a valid JSON stream an object will contain
-only properties as direct children, which will result in start_property and end_property tokens.
+These token types delimit a JSON object. In a valid JSON stream an
+object will contain only properties as direct children, which will
+result in start_property and end_property tokens.
 
 =head2 start_array, end_array
 
-These token types delimit a JSON array. In a valid JSON stream an object will contain
-only values as direct children, which will result in one of the value token types described
-below.
+These token types delimit a JSON array. In a valid JSON stream an
+object will contain only values as direct children, which will result
+in one of the value token types described below.
 
 =head2 start_property($name), end_property
 
-These token types delimit a JSON property. The name of the property is given as an argument.
-In a valid JSON stream a start_property token will always be followed by one of the value
-token types which will itself be immediately followed by an end_property token.
+These token types delimit a JSON property. The name of the property
+is given as an argument. In a valid JSON stream a start_property
+token will always be followed by one of the value token types which
+will itself be immediately followed by an end_property token.
 
 =head2 add_string($value)
 
-Represents a JSON string. The value of the string is passed as an argument.
+Represents a JSON string. The value of the string is passed as an
+argument.
 
 =head2 add_number($value)
 
-Represents a JSON number. The value of the number is passed as an argument.
+Represents a JSON number. The value of the number is passed as an
+argument.
 
 =head2 add_boolean($value)
 
-Represents a JSON boolean. If it's C<true> then 1 is passed as an argument, or if C<false> 0 is passed.
+Represents a JSON boolean. If it's C<true> then 1 is passed as an
+argument, or if C<false> 0 is passed.
 
 =head2 add_null
 
@@ -860,24 +794,12 @@ Represents a JSON null.
 
 =head2 error($string)
 
-Indicates a tokenization error. A human-readable description of the error is included in $string.
+Indicates a tokenization error. A human-readable description of the
+error is included in $string.
 
 =head1 STREAM BUFFERING
 
-Except in event-based mode, this module doesn't do any buffering.
-It expects the underlying stream to do appropriate read buffering
-if necessary.
+This module doesn't do any buffering, and it expects the underlying
+stream to do appropriate read buffering if necessary.
 
-In event-based mode an internal buffer is used which retains
-bytes that are not yet enough to unambiguously represent
-a complete token so that it can retry when more data is available.
-In this situation it is up to the caller to read from its
-data source in an appropriate manner, but it is best to provide
-as much data as possible in a single data notification.
-
-=head1 LICENSE
-
-Copyright 2009 Martin Atkins <mart@degeneration.co.uk>.
-
-This program is free software; you can redistribute it and/or modify it under
-the same terms as Perl itself.
+=cut

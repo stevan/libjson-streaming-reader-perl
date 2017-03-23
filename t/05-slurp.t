@@ -39,20 +39,15 @@ my $data = q[
 ];
 
 my $jsonr = JSON::Streaming::Reader->for_string(\$data);
-$jsonr->process_tokens(
-    start_object => sub {
-    },
-    end_object => sub {
-    },
-    start_property => sub {
-        my $name = shift;
 
-        my $value = $jsonr->slurp();
+while (my $token = $jsonr->get_token) {
+    if ( $token->[0] eq JSON::Streaming::Reader->START_PROPERTY ) {
+        my $name     = $token->[1];
+        my $value    = $jsonr->slurp();
         my $expected = $correct{$name};
-
         is_deeply($value, $expected, $name);
-    },
-);
+    }
+}
 
 done_testing;
 
