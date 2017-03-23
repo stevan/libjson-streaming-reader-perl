@@ -736,6 +736,12 @@ sub is_event_based {
 
 1;
 
+__END__
+
+=head1 NAME
+
+JSON::Streaming::Reader - Read JSON strings in a streaming manner
+
 =head1 DESCRIPTION
 
 This module is effectively a tokenizer for JSON strings. With it you can process
