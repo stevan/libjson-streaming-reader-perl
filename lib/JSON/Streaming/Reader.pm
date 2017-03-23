@@ -209,10 +209,9 @@ sub skip {
     my ($self) = @_;
 
     my @end_chars;
-
     @end_chars = (',', '}') if $self->in_property;
-    @end_chars = qw(}) if $self->in_object;
-    @end_chars = qw(]) if $self->in_array;
+    @end_chars = ('}')      if $self->in_object;
+    @end_chars = (']')      if $self->in_array;
 
     my $start_chars = 0;
 
