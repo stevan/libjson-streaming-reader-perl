@@ -15,30 +15,30 @@ BEGIN {
 #compare_event_parse("[", "null,428", "]");
 test_parse "... parsed correctly (no overrrun)", '[null,428]',
     [
-        [ 'start_array' ],
-        [ 'add_null' ],
-        [ 'add_number', 428 ],
-        [ 'end_array' ]
+        [ START_ARRAY ],
+        [ ADD_NULL ],
+        [ ADD_NUMBER, 428 ],
+        [ END_ARRAY ]
     ];
 
 #compare_event_parse("[", "null,428", "123]");
 test_parse "... parsed correctly (no overrun)", '[null,428,123]',
     [
-        [ 'start_array' ],
-        [ 'add_null' ],
-        [ 'add_number', 428 ],
-        [ 'add_number', 123 ],
-        [ 'end_array' ]
+        [ START_ARRAY ],
+        [ ADD_NULL ],
+        [ ADD_NUMBER, 428 ],
+        [ ADD_NUMBER, 123 ],
+        [ END_ARRAY ]
     ];
 
 #compare_event_parse("[", "null,\"foo", "bar\"]");
 test_parse "... parsed correctly (no overrun)", '[null,"foo","bar"]',
     [
-        [ 'start_array' ],
-        [ 'add_null' ],
-        [ 'add_string', 'foo' ],
-        [ 'add_string', 'bar' ],
-        [ 'end_array' ]
+        [ START_ARRAY ],
+        [ ADD_NULL ],
+        [ ADD_STRING, 'foo' ],
+        [ ADD_STRING, 'bar' ],
+        [ END_ARRAY ]
     ];
 
 done_testing;

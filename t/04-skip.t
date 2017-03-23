@@ -5,6 +5,9 @@ use warnings;
 
 use Test::More;
 
+use lib 't/lib';
+use TestUtil;
+
 BEGIN {
     use_ok('JSON::Streaming::Reader');
 }
@@ -38,36 +41,36 @@ while (my $token = $jsonr->get_token) {
 is_deeply(
     \@tokens,
     [
-        [ 'start_object' ],
-            [ 'start_property', 'string' ],
-                [ 'add_string', 'world' ],
-            [ 'end_property' ],
+        [ START_OBJECT ],
+            [ START_PROPERTY, 'string' ],
+                [ ADD_STRING, 'world' ],
+            [ END_PROPERTY ],
 
-            [ 'start_property', 'number' ],
-                [ 'add_number', 2 ],
-            [ 'end_property' ],
+            [ START_PROPERTY, 'number' ],
+                [ ADD_NUMBER, 2 ],
+            [ END_PROPERTY ],
 
-            [ 'start_property', 'boolean' ],
-                [ 'add_boolean', 1 ],
-            [ 'end_property' ],
+            [ START_PROPERTY, 'boolean' ],
+                [ ADD_BOOLEAN, 1 ],
+            [ END_PROPERTY ],
 
-            [ 'start_property', 'array' ],
+            [ START_PROPERTY, 'array' ],
                 # the array has been skipped
-            [ 'end_property' ],
+            [ END_PROPERTY ],
 
-            [ 'start_property', 'object' ],
-                [ 'start_object' ],
-                    [ 'start_property', 'hello' ],
-                        [ 'add_string', 'world' ],
-                    [ 'end_property' ],
-                [ 'end_object' ],
-            [ 'end_property' ],
+            [ START_PROPERTY, 'object' ],
+                [ START_OBJECT ],
+                    [ START_PROPERTY, 'hello' ],
+                        [ ADD_STRING, 'world' ],
+                    [ END_PROPERTY ],
+                [ END_OBJECT ],
+            [ END_PROPERTY ],
 
-            [ 'start_property', 'complexArray' ],
+            [ START_PROPERTY, 'complexArray' ],
                 # the array has been skipped
-            [ 'end_property' ],
+            [ END_PROPERTY ],
 
-        [ 'end_object' ]
+        [ END_OBJECT ]
     ],
     '... got the expected tokens'
 );

@@ -13,21 +13,17 @@ use constant ROOT_STATE => {};
 
 # Token types ...
 
-use constant START_OBJECT   => 'start_object';
-use constant END_OBJECT     => 'end_object';
-
-use constant START_ARRAY    => 'start_array';
-use constant END_ARRAY      => 'end_array';
-
-use constant START_PROPERTY => 'start_property';
-use constant END_PROPERTY   => 'end_property';
-
-use constant ADD_STRING     => 'add_string';
-use constant ADD_NUMBER     => 'add_number';
-use constant ADD_BOOLEAN    => 'add_boolean';
-use constant ADD_NULL       => 'add_null';
-
-use constant ERROR          => 'error';
+use constant START_OBJECT   => 0b00000000001;
+use constant END_OBJECT     => 0b00000000010;
+use constant START_ARRAY    => 0b00000000100;
+use constant END_ARRAY      => 0b00000001000;
+use constant START_PROPERTY => 0b00000010000;
+use constant END_PROPERTY   => 0b00000100000;
+use constant ADD_STRING     => 0b00001000000;
+use constant ADD_NUMBER     => 0b00010000000;
+use constant ADD_BOOLEAN    => 0b00100000000;
+use constant ADD_NULL       => 0b01000000000;
+use constant ERROR          => 0b10000000000;
 
 # ...
 
@@ -120,12 +116,12 @@ sub get_token {
                 my $name_token = $self->_get_string_token();
 
                 # if the string tokenizer returns an error ...
-                if ( $name_token->[0] eq ERROR ) {
+                if ( $name_token->[0] == ERROR ) {
                     $token = $name_token;
                 }
                 else {
                     # otherwise ...
-                    unless ( $name_token->[0] eq ADD_STRING ) {
+                    unless ( $name_token->[0] == ADD_STRING ) {
                         $token = [ ERROR, "Expected string" ];
                     }
                     else {
@@ -308,7 +304,7 @@ sub get_token {
         $token = [ ERROR, $error ];
     }
 
-    if ( $token && $token->[0] eq ERROR ) {
+    if ( $token && $token->[0] == ERROR ) {
         $self->{errored} = 1;
     }
 
@@ -377,21 +373,21 @@ sub slurp {
         my ($token, $target) = @_;
         my $type = $token->[0];
 
-        if ($type eq ADD_STRING || $type eq ADD_NUMBER) {
+        if ($type == ADD_STRING || $type == ADD_NUMBER) {
             $$target = $token->[1];
         }
-        elsif ($type eq ADD_BOOLEAN) {
+        elsif ($type == ADD_BOOLEAN) {
             $$target = $token->[1] ? \1 : \0;
         }
-        elsif ($type eq ADD_NULL) {
+        elsif ($type == ADD_NULL) {
             $$target = undef;
         }
-        elsif ($type eq START_OBJECT) {
+        elsif ($type == START_OBJECT) {
             my $new_item = {};
             $$target = $new_item;
             $push_item->($new_item);
         }
-        elsif ($type eq START_ARRAY) {
+        elsif ($type == START_ARRAY) {
             my $new_item = [];
             $$target = $new_item;
             $push_item->($new_item);
@@ -423,7 +419,7 @@ sub slurp {
     while (my $token = $self->get_token()) {
         my $type = $token->[0];
 
-        if ($type eq ERROR) {
+        if ($type == ERROR) {
             die $token->[1];
         }
 
@@ -432,7 +428,7 @@ sub slurp {
         if ($item_type eq 'SCALAR' || $item_type eq 'REF') {
             # We're expecting a value
 
-            if ($type eq END_PROPERTY) {
+            if ($type == END_PROPERTY) {
                 $pop_item->();
                 last unless defined($current_item);
             }
@@ -441,7 +437,7 @@ sub slurp {
             }
         }
         elsif ($item_type eq 'ARRAY') {
-            if ($type eq END_ARRAY) {
+            if ($type == END_ARRAY) {
                 $pop_item->();
                 last unless defined($current_item);
             }
@@ -456,12 +452,12 @@ sub slurp {
         elsif ($item_type eq 'HASH') {
             # We're expecting a property here.
 
-            if ($type eq START_PROPERTY) {
+            if ($type == START_PROPERTY) {
                 my $name = $token->[1];
                 my $target = \$current_item->{$name};
                 $push_item->($target);
             }
-            elsif ($type eq END_OBJECT) {
+            elsif ($type == END_OBJECT) {
                 $pop_item->();
                 last unless defined($current_item);
             }

@@ -5,6 +5,9 @@ use warnings;
 
 use Test::More;
 
+use lib 't/lib';
+use TestUtil;
+
 BEGIN {
     use_ok('JSON::Streaming::Reader');
 }
