@@ -62,9 +62,12 @@ sub get_token {
 
     return undef if $self->{errored};
 
-    my $tok = eval {
+    my $token;
+
+    eval {
         my $need_comma = $self->made_value;
-        # Until we find a character that's interesting
+
+    MAIN_LOOP:
         while (1) {
             $self->_eat_whitespace();
             my $char = $self->_peek_char();
@@ -72,7 +75,8 @@ sub get_token {
             unless (defined($char)) {
                 # EOF
                 die("Unexpected end of input\n") unless $self->_state == ROOT_STATE;
-                return undef;
+                $token = undef;
+                last MAIN_LOOP;
             }
 
             # If we've found more stuff while we're in the root state and we've
@@ -95,7 +99,8 @@ sub get_token {
                     die("Property has no value\n") unless $self->made_value;
                     $self->_pop_state();
                     $self->_set_made_value;
-                    return [ END_PROPERTY ];
+                    $token = [ END_PROPERTY ];
+                    last MAIN_LOOP;
                 }
             }
 
@@ -108,7 +113,8 @@ sub get_token {
                 my $property_name = $name_token->[1];
                 my $state = $self->_push_state();
                 $state->{in_property} = 1;
-                return [ START_PROPERTY, $property_name ];
+                $token = [ START_PROPERTY, $property_name ];
+                last MAIN_LOOP;
             }
 
             if ($char eq '{') {
@@ -116,7 +122,8 @@ sub get_token {
                 $self->_require_char('{');
                 my $state = $self->_push_state();
                 $state->{in_object} = 1;
-                return [ START_OBJECT ];
+                $token = [ START_OBJECT ];
+                last MAIN_LOOP;
             }
             elsif ($char eq '}') {
                 die("Expected another property\n") if $self->done_comma;
@@ -130,21 +137,24 @@ sub get_token {
                     die("Property has no value\n") unless $self->made_value;
                     $self->_pop_state();
                     $self->_set_made_value;
-                    return [ END_PROPERTY ];
+                    $token = [ END_PROPERTY ];
+                    last MAIN_LOOP;
                 }
 
                 die("End of object without matching start\n") unless $self->in_object;
                 $self->_require_char('}');
                 $self->_pop_state();
                 $self->_set_made_value();
-                return [ END_OBJECT ];
+                $token = [ END_OBJECT ];
+                last MAIN_LOOP;
             }
             elsif ($char eq '[') {
                 die("Unexpected start of array\n") unless $self->can_start_value;
                 $self->_require_char('[');
                 my $state = $self->_push_state();
                 $state->{in_array} = 1;
-                return [ START_ARRAY ];
+                $token = [ START_ARRAY ];
+                last MAIN_LOOP;
             }
             elsif ($char eq ']') {
                 die("End of array without matching start\n") unless $self->in_array;
@@ -152,12 +162,14 @@ sub get_token {
                 $self->_require_char(']');
                 $self->_pop_state();
                 $self->_set_made_value();
-                return [ END_ARRAY ];
+                $token = [ END_ARRAY ];
+                last MAIN_LOOP;
             }
             elsif ($char eq '"') {
                 die("Unexpected string value\n") unless $self->can_start_value;
                 die("Expected ,\n") if $need_comma && ! $self->done_comma;
-                return $self->_get_string_token();
+                $token = $self->_get_string_token();
+                last MAIN_LOOP;
             }
             elsif ($char eq 't') {
                 die("Unexpected boolean value\n") unless $self->can_start_value;
@@ -166,7 +178,8 @@ sub get_token {
                     $self->_require_char($c);
                 }
                 $self->_set_made_value();
-                return [ ADD_BOOLEAN, 1 ];
+                $token = [ ADD_BOOLEAN, 1 ];
+                last MAIN_LOOP;
             }
             elsif ($char eq 'f') {
                 die("Unexpected boolean value\n") unless $self->can_start_value;
@@ -175,7 +188,8 @@ sub get_token {
                     $self->_require_char($c);
                 }
                 $self->_set_made_value();
-                return [ ADD_BOOLEAN, 0 ];
+                $token = [ ADD_BOOLEAN, 0 ];
+                last MAIN_LOOP;
             }
             elsif ($char eq 'n') {
                 die("Unexpected null\n") unless $self->can_start_value;
@@ -184,26 +198,29 @@ sub get_token {
                     $self->_require_char($c);
                 }
                 $self->_set_made_value();
-                return [ ADD_NULL ];
+                $token = [ ADD_NULL ];
+                last MAIN_LOOP;
             }
             elsif ($char =~ /^[\d\-]/) {
                 die("Unexpected number value\n") unless $self->can_start_value;
                 die("Expected ,\n") if $need_comma && ! $self->done_comma;
-                return $self->_get_number_token();
+                $token = $self->_get_number_token();
+                last MAIN_LOOP;
             }
 
             die "Unexpected character $char\n";
-            last;
+            $token = undef;
+            last MAIN_LOOP;
         }
     };
     if ($@) {
         $self->{errored} = 1;
         my $error = $@;
         chomp $error;
-        $tok = [ ERROR, $error ];
+        $token = [ ERROR, $error ];
     }
 
-    return $tok;
+    return $token;
 
 }
 
