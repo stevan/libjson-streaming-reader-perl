@@ -7,7 +7,7 @@ use Carp ();
 use IO::Scalar;
 use UNIVERSAL::Object;
 
-our $VERSION = '0.06';
+our $VERSION = '0.01';
 
 use constant ROOT_STATE => {};
 
