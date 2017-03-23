@@ -37,7 +37,9 @@ our %HAS; BEGIN {
         stream      => sub { die 'A `stream` must be defined' },
         state       => \&ROOT_STATE,
         state_stack => sub { [] },
-        used        => sub { 0  },
+        used        => sub { 0 },
+        peeked      => sub { undef },
+        errored     => sub { 0 },
     )
 }
 
