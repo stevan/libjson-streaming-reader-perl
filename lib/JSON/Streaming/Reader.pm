@@ -74,14 +74,21 @@ sub get_token {
 
             unless (defined($char)) {
                 # EOF
-                die("Unexpected end of input\n") unless $self->_state == ROOT_STATE;
-                $token = undef;
+                unless ( $self->{state} == ROOT_STATE ) {
+                    $token = [ ERROR, "Unexpected end of input" ];
+                }
+                else {
+                    $token = undef;
+                }
                 last MAIN_LOOP;
             }
 
             # If we've found more stuff while we're in the root state and we've
             # already seen stuff then there's junk at the end of the string.
-            die("Unexpected junk at the end of input\n") if $self->_state == ROOT_STATE && $self->{used};
+            if ( $self->{state} == ROOT_STATE && $self->{used} ) {
+                $token = [ ERROR, "Unexpected junk at the end of input" ];
+                last MAIN_LOOP;
+            }
 
             if ($char eq ',' && ! $self->done_comma) {
                 if ($self->in_array || $self->in_object) {
@@ -96,10 +103,14 @@ sub get_token {
                     # the end of the property. We exit the property state
                     # but leave the comma so that the next get_token
                     # can still see it.
-                    die("Property has no value\n") unless $self->made_value;
-                    $self->_pop_state();
-                    $self->_set_made_value;
-                    $token = [ END_PROPERTY ];
+                    unless ( $self->made_value ) {
+                        $token = [ ERROR, "Property has no value" ];
+                    }
+                    else {
+                        $self->_pop_state();
+                        $self->_set_made_value;
+                        $token = [ END_PROPERTY ];
+                    }
                     last MAIN_LOOP;
                 }
             }
@@ -107,117 +118,198 @@ sub get_token {
             if ($char ne '}' && $self->in_object) {
                 # If we're in an object then we must start a property here.
                 my $name_token = $self->_get_string_token();
-                die "Expected string\n" unless $name_token->[0] eq ADD_STRING;
-                $self->_eat_whitespace();
-                $self->_require_char(":");
-                my $property_name = $name_token->[1];
-                my $state = $self->_push_state();
-                $state->{in_property} = 1;
-                $token = [ START_PROPERTY, $property_name ];
+
+                # if the string tokenizer returns an error ...
+                if ( $name_token->[0] eq ERROR ) {
+                    $token = $name_token;
+                }
+                else {
+                    # otherwise ...
+                    unless ( $name_token->[0] eq ADD_STRING ) {
+                        $token = [ ERROR, "Expected string" ];
+                    }
+                    else {
+                        $self->_eat_whitespace();
+                        $self->_require_char(":");
+                        my $property_name = $name_token->[1];
+                        my $state = $self->_push_state();
+                        $state->{in_property} = 1;
+                        $token = [ START_PROPERTY, $property_name ];
+                    }
+                }
                 last MAIN_LOOP;
             }
 
             if ($char eq '{') {
-                die("Unexpected start of object\n") unless $self->can_start_value;
-                $self->_require_char('{');
-                my $state = $self->_push_state();
-                $state->{in_object} = 1;
-                $token = [ START_OBJECT ];
+                unless ( $self->can_start_value ) {
+                    $token = [ ERROR, "Unexpected start of object" ];
+                }
+                else {
+                    $self->_require_char('{');
+                    my $state = $self->_push_state();
+                    $state->{in_object} = 1;
+                    $token = [ START_OBJECT ];
+                }
                 last MAIN_LOOP;
             }
             elsif ($char eq '}') {
-                die("Expected another property\n") if $self->done_comma;
-
-                # If we're in a property then this also indicates
-                # the end of the property.
-                # We don't actually consume the } here, so the next
-                # call to get_token will see it again but it will be
-                # in the is_object state rather than is_property.
-                if ($self->in_property) {
-                    die("Property has no value\n") unless $self->made_value;
-                    $self->_pop_state();
-                    $self->_set_made_value;
-                    $token = [ END_PROPERTY ];
-                    last MAIN_LOOP;
+                if ( $self->done_comma ) {
+                    $token = [ ERROR, "Expected another property" ];
                 }
+                else {
+                    # If we're in a property then this also indicates
+                    # the end of the property.
+                    # We don't actually consume the } here, so the next
+                    # call to get_token will see it again but it will be
+                    # in the is_object state rather than is_property.
+                    if ($self->in_property) {
+                        unless ( $self->made_value ) {
+                            $token = [ ERROR, "Property has no value" ];
+                        }
+                        else {
+                            $self->_pop_state();
+                            $self->_set_made_value;
+                            $token = [ END_PROPERTY ];
+                        }
+                        last MAIN_LOOP;
+                    }
 
-                die("End of object without matching start\n") unless $self->in_object;
-                $self->_require_char('}');
-                $self->_pop_state();
-                $self->_set_made_value();
-                $token = [ END_OBJECT ];
+                    unless ( $self->in_object ) {
+                        $token = [ ERROR, "End of object without matching start" ];
+                    }
+                    else {
+                        $self->_require_char('}');
+                        $self->_pop_state();
+                        $self->_set_made_value();
+                        $token = [ END_OBJECT ];
+                    }
+                }
                 last MAIN_LOOP;
             }
             elsif ($char eq '[') {
-                die("Unexpected start of array\n") unless $self->can_start_value;
-                $self->_require_char('[');
-                my $state = $self->_push_state();
-                $state->{in_array} = 1;
-                $token = [ START_ARRAY ];
+                unless ( $self->can_start_value ) {
+                    $token = [ ERROR, "Unexpected start of array" ];
+                }
+                else {
+                    $self->_require_char('[');
+                    my $state = $self->_push_state();
+                    $state->{in_array} = 1;
+                    $token = [ START_ARRAY ];
+                }
                 last MAIN_LOOP;
             }
             elsif ($char eq ']') {
-                die("End of array without matching start\n") unless $self->in_array;
-                die("Expected another value\n") if $self->done_comma;
-                $self->_require_char(']');
-                $self->_pop_state();
-                $self->_set_made_value();
-                $token = [ END_ARRAY ];
+                unless ($self->in_array) {
+                    $token = [ ERROR, "End of array without matching start" ];
+                }
+                else {
+                    if ( $self->done_comma ) {
+                        $token = [ ERROR, "Expected another value" ];
+                    }
+                    else {
+                        $self->_require_char(']');
+                        $self->_pop_state();
+                        $self->_set_made_value();
+                        $token = [ END_ARRAY ];
+                    }
+                }
                 last MAIN_LOOP;
             }
             elsif ($char eq '"') {
-                die("Unexpected string value\n") unless $self->can_start_value;
-                die("Expected ,\n") if $need_comma && ! $self->done_comma;
-                $token = $self->_get_string_token();
+                unless ( $self->can_start_value ) {
+                    $token = [ ERROR, "Unexpected string value" ];
+                }
+                else {
+                    if ( $need_comma && ! $self->done_comma ) {
+                        $token = [ ERROR, "Expected ," ];
+                    }
+                    else {
+                        $token = $self->_get_string_token();
+                    }
+                }
                 last MAIN_LOOP;
             }
             elsif ($char eq 't') {
-                die("Unexpected boolean value\n") unless $self->can_start_value;
-                die("Expected ,\n") if $need_comma && ! $self->done_comma;
-                foreach my $c (qw(t r u e)) {
-                    $self->_require_char($c);
+                unless ( $self->can_start_value ) {
+                    $token = [ ERROR, "Unexpected boolean value" ];
                 }
-                $self->_set_made_value();
-                $token = [ ADD_BOOLEAN, 1 ];
+                else {
+                    if ( $need_comma && ! $self->done_comma ) {
+                        $token = [ ERROR, "Expected ," ];
+                    }
+                    else {
+                        foreach my $c (qw(t r u e)) {
+                            $self->_require_char($c);
+                        }
+                        $self->_set_made_value();
+                        $token = [ ADD_BOOLEAN, 1 ];
+                    }
+                }
                 last MAIN_LOOP;
             }
             elsif ($char eq 'f') {
-                die("Unexpected boolean value\n") unless $self->can_start_value;
-                die("Expected ,\n") if $need_comma && ! $self->done_comma;
-                foreach my $c (qw(f a l s e)) {
-                    $self->_require_char($c);
+                unless ( $self->can_start_value ) {
+                    $token = [ ERROR, "Unexpected boolean value" ];
                 }
-                $self->_set_made_value();
-                $token = [ ADD_BOOLEAN, 0 ];
+                else {
+                    if ( $need_comma && ! $self->done_comma ) {
+                        $token = [ ERROR, "Expected ," ];
+                    }
+                    else {
+                        foreach my $c (qw(f a l s e)) {
+                            $self->_require_char($c);
+                        }
+                        $self->_set_made_value();
+                        $token = [ ADD_BOOLEAN, 0 ];
+                    }
+                }
                 last MAIN_LOOP;
             }
             elsif ($char eq 'n') {
-                die("Unexpected null\n") unless $self->can_start_value;
-                die("Expected ,\n") if $need_comma && ! $self->done_comma;
-                foreach my $c (qw(n u l l)) {
-                    $self->_require_char($c);
+                unless ( $self->can_start_value ) {
+                    $token = [ ERROR, "Unexpected null" ];
                 }
-                $self->_set_made_value();
-                $token = [ ADD_NULL ];
+                else {
+                    if ( $need_comma && ! $self->done_comma ) {
+                        $token = [ ERROR, "Expected ," ];
+                    }
+                    else {
+                        foreach my $c (qw(n u l l)) {
+                            $self->_require_char($c);
+                        }
+                        $self->_set_made_value();
+                        $token = [ ADD_NULL ];
+                    }
+                }
                 last MAIN_LOOP;
             }
             elsif ($char =~ /^[\d\-]/) {
-                die("Unexpected number value\n") unless $self->can_start_value;
-                die("Expected ,\n") if $need_comma && ! $self->done_comma;
-                $token = $self->_get_number_token();
+                unless ( $self->can_start_value ) {
+                    $token = [ ERROR, "Unexpected number value" ];
+                }
+                else {
+                    if ( $need_comma && ! $self->done_comma ) {
+                        $token = [ ERROR, "Expected ," ];
+                    }
+                    else {
+                        $token = $self->_get_number_token();
+                    }
+                }
                 last MAIN_LOOP;
             }
 
-            die "Unexpected character $char\n";
-            $token = undef;
+            $token = [ ERROR, "Unexpected character $char" ];
             last MAIN_LOOP;
         }
     };
     if ($@) {
-        $self->{errored} = 1;
         my $error = $@;
         chomp $error;
         $token = [ ERROR, $error ];
+    }
+
+    if ( $token && $token->[0] eq ERROR ) {
+        $self->{errored} = 1;
     }
 
     return $token;
@@ -268,7 +360,7 @@ sub skip {
 sub slurp {
     my ($self) = @_;
 
-    my $start_state = $self->_state;
+    my $start_state = $self->{state};
     my @items = ();
     my $current_item = undef;
 
@@ -392,23 +484,23 @@ sub slurp {
 ## some predicates
 
 sub in_object {
-    return $_[0]->_state->{in_object} ? 1 : 0;
+    return $_[0]->{state}->{in_object} ? 1 : 0;
 }
 
 sub in_array {
-    return $_[0]->_state->{in_array} ? 1 : 0;
+    return $_[0]->{state}->{in_array} ? 1 : 0;
 }
 
 sub in_property {
-    return $_[0]->_state->{in_property} ? 1 : 0;
+    return $_[0]->{state}->{in_property} ? 1 : 0;
 }
 
 sub made_value {
-    return $_[0]->_state->{made_value} ? 1 : 0;
+    return $_[0]->{state}->{made_value} ? 1 : 0;
 }
 
 sub done_comma {
-    return $_[0]->_state->{done_comma} ? 1 : 0;
+    return $_[0]->{state}->{done_comma} ? 1 : 0;
 }
 
 sub can_start_value {
@@ -537,7 +629,7 @@ sub _get_string_token {
     while (1) {
         my $char = $self->_get_char();
 
-        die "Unterminated string\n" unless defined($char);
+        return [ ERROR, "Unterminated string" ] unless defined($char);
         if ($char eq '"') {
             last;
         }
@@ -545,17 +637,17 @@ sub _get_string_token {
         if ($char eq "\\") {
             my $escape_char = $self->_get_char();
 
-            die "Unfinished escape sequence\n" unless defined($escape_char);
+            return [ ERROR, "Unfinished escape sequence" ] unless defined($escape_char);
 
             if (my $replacement = $escape_chars{$escape_char}) {
                 $accum .= $replacement;
             }
             elsif ($escape_char eq 'u') {
                 # TODO: Support this
-                die "\\u sequence not yet supported\n";
+                return [ ERROR, "\\u sequence not yet supported" ];
             }
             else {
-                die "Invalid escape sequence \\$escape_char\n";
+                return [ ERROR, "Invalid escape sequence \\$escape_char" ];
             }
         }
         else {
@@ -613,47 +705,41 @@ sub _parse_string {
 sub _push_state {
     my ($self) = @_;
 
-    Carp::croak("Can't add anything else: JSON output is complete") if $self->_state == ROOT_STATE && $self->{used};
+    Carp::croak("Can't add anything else: JSON output is complete")
+        if $self->{state} == ROOT_STATE && $self->{used};
 
     $self->{used} = 1;
 
-    push @{$self->{state_stack}}, $self->{state};
+    push @{ $self->{state_stack} } => $self->{state};
 
     $self->{state} = {
-        in_object => 0,
-        in_array => 0,
+        in_object   => 0,
+        in_array    => 0,
         in_property => 0,
-        made_value => 0,
+        made_value  => 0,
     };
 
     return $self->{state};
 }
 
 sub _pop_state {
-    my ($self) = @_;
-
-    my $state = pop @{$self->{state_stack}};
-    return $self->{state} = $state;
-}
-
-sub _state {
-    my ($self) = @_;
-
-    return $self->{state};
-}
-
-sub _set_made_value {
-    $_[0]->_state->{made_value} = 1 unless $_[0]->_state == ROOT_STATE;
-    $_[0]->_state->{done_comma} = 0 unless $_[0]->_state == ROOT_STATE;
-    $_[0]->{used} = 1;
-}
-
-sub _set_done_comma {
-    $_[0]->_state->{done_comma} = 1 unless $_[0]->_state == ROOT_STATE;
+    return $_[0]->{state} = pop @{ $_[0]->{state_stack} };
 }
 
 sub _expecting_property {
     return $_[0]->in_object ? 1 : 0;
+}
+
+sub _set_made_value {
+    $_[0]->{state}->{made_value} = 1 unless $_[0]->{state} == ROOT_STATE;
+    $_[0]->{state}->{done_comma} = 0 unless $_[0]->{state} == ROOT_STATE;
+    $_[0]->{used} = 1;
+    return;
+}
+
+sub _set_done_comma {
+    $_[0]->{state}->{done_comma} = 1 unless $_[0]->{state} == ROOT_STATE;
+    return;
 }
 
 1;
