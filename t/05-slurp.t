@@ -9,9 +9,6 @@ BEGIN {
     use_ok('JSON::Streaming::Reader');
 }
 
-use IO::Handle;
-use Data::Dumper;
-
 my %correct = (
     string => "world",
     number => 2,

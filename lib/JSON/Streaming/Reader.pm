@@ -62,7 +62,8 @@ sub get_token {
 
     my $tok = eval {
         my $need_comma = $self->made_value;
-        while (1) { # Until we find a character that's interesting
+        # Until we find a character that's interesting
+        while (1) {
             $self->_eat_whitespace();
             my $char = $self->_peek_char();
 
