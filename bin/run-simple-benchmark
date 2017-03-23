@@ -1,0 +1,11 @@
+#!bash
+
+# JSON created with http://www.json-generator.com/
+
+/usr/bin/time perl -I lib/ benchmarks/simple.pl < benchmarks/samples/small.json
+/usr/bin/time perl -I lib/ benchmarks/simple.pl < benchmarks/samples/medium.json
+/usr/bin/time perl -I lib/ benchmarks/simple.pl < benchmarks/samples/large.json
+/usr/bin/time perl -I lib/ benchmarks/simple.pl < benchmarks/samples/xtra-large.json
+/usr/bin/time perl -I lib/ benchmarks/simple.pl < benchmarks/samples/xtra-xtra-large.json
+/usr/bin/time perl -I lib/ benchmarks/simple.pl < benchmarks/samples/xtra-xtra-xtra-large.json
+/usr/bin/time perl -I lib/ benchmarks/simple.pl < benchmarks/samples/yuge.json
