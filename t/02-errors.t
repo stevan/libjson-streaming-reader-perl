@@ -4,7 +4,9 @@ use strict;
 use warnings;
 
 use Test::More;
-use JSON::Streaming::Reader::TestUtil;
+
+use lib 't/lib';
+use TestUtil;
 
 BEGIN {
     use_ok('JSON::Streaming::Reader');

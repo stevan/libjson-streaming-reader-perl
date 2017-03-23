@@ -4,7 +4,6 @@ use strict;
 use warnings;
 
 use Test::More;
-use JSON::Streaming::Reader::TestUtil;
 
 BEGIN {
     use_ok('JSON::Streaming::Reader');
@@ -25,9 +24,21 @@ my %correct = (
     ],
 );
 
-my $data = join('', <DATA>);
-my $jsonr = JSON::Streaming::Reader->for_string(\$data);
+my $data = q[
+{
+    "string": "world",
+    "number": 2,
+    "boolean": true,
+    "array": [ 1, 2, 3 ],
+    "object": { "hello":"world" },
+    "complexArray": [
+        {"null":null},
+        [ 1, 2, false ]
+     ]
+}
+];
 
+my $jsonr = JSON::Streaming::Reader->for_string(\$data);
 $jsonr->process_tokens(
     start_object => sub {
     },
@@ -44,18 +55,4 @@ $jsonr->process_tokens(
 );
 
 done_testing;
-
-__END__
-
-{
-    "string": "world",
-    "number": 2,
-    "boolean": true,
-    "array": [ 1, 2, 3 ],
-    "object": { "hello":"world" },
-    "complexArray": [
-        {"null":null},
-        [ 1, 2, false ]
-     ]
-}
 

@@ -7,8 +7,6 @@ use Carp ();
 use IO::Scalar;
 use UNIVERSAL::Object;
 
-use JSON::Streaming::Reader::EventWrapper;
-
 our $VERSION = '0.06';
 
 use constant ROOT_STATE => {};
@@ -53,16 +51,6 @@ sub for_string {
     return $class->new( stream => IO::Scalar->new(ref $value ? $value : \$value) );
 }
 
-sub event_based {
-    my ($class, %callbacks) = @_;
-
-    my $fake_stream = JSON::Streaming::Reader::EventWrapper->new();
-    my $self = $class->for_stream($fake_stream);
-    $self->{event_callbacks} = \%callbacks;
-
-    return $self;
-}
-
 sub process_tokens {
     my ($self, %callbacks) = @_;
 
@@ -98,13 +86,6 @@ sub get_token {
                 if ($self->in_array || $self->in_object) {
                     if ($self->made_value) {
                         $self->_require_char(',');
-
-                        if($self->is_event_based) {
-                            my $stream = $self->{stream};
-                            $stream->complete_reading;
-                            $stream->begin_reading;
-                        }
-
                         $self->_set_done_comma();
                         next;
                     }
@@ -219,18 +200,10 @@ sub get_token {
         }
     };
     if ($@) {
-        unless (ref($@) && $@ == JSON::Streaming::Reader::EventWrapper::UNDERRUN()) {
-            $self->{errored} = 1;
-            my $error = $@;
-            chomp $error;
-            return [ ERROR, $error ];
-        }
-        else {
-            # If it's an underrun signal from our weird event-based IO wrapper,
-            # we pass it through to the caller.
-
-            die $@;
-        }
+        $self->{errored} = 1;
+        my $error = $@;
+        chomp $error;
+        $tok = [ ERROR, $error ];
     }
 
     return $tok;
@@ -239,8 +212,6 @@ sub get_token {
 
 sub skip {
     my ($self) = @_;
-
-    Carp::croak("Can't skip() on an event-based reader") if $self->is_event_based;
 
     my @end_chars;
 
@@ -283,8 +254,6 @@ sub skip {
 
 sub slurp {
     my ($self) = @_;
-
-    Carp::croak("Can't slurp() on an event-based reader") if $self->is_event_based;
 
     my $start_state = $self->_state;
     my @items = ();
@@ -405,71 +374,6 @@ sub slurp {
     die "Unexpected end of input" if defined($current_item);
 
     return $need_deref ? $$ret_item : $ret_item;
-}
-
-sub signal_eof {
-    my ($self) = @_;
-
-    Carp::croak("Can't signal_eof on a non-event-based JSON reader") unless $self->is_event_based;
-
-    $self->{stream}->signal_eof();
-
-    # Now feed the buffer with nothing to get it to process
-    # whatever we have left in the buffer.
-    my $empty = '';
-    $self->feed_buffer(\$empty);
-}
-
-sub feed_buffer {
-    my ($self, $new_data) = @_;
-
-    Carp::croak("Can't feed_buffer on a non-event-based JSON reader") unless $self->is_event_based;
-
-    my $stream = $self->{stream};
-
-    $stream->feed_buffer($new_data);
-
-    # Retain the peek value so we can restore it if we roll back
-    my $old_peek = $self->{peeked};
-
-    # Start a read transaction so we can roll back if there's a buffer underrun
-    $stream->begin_reading();
-
-    my $callbacks = $self->{event_callbacks};
-
-    # Now get our normal, blocking parsing code to try to read tokens until we underrun the buffer.
-    eval {
-        while (my $token = $self->get_token()) {
-            $stream->complete_reading();
-
-            my $token_type = shift @$token;
-            my $callback = $callbacks->{$token_type} or Carp::croak("No callback provided for $token_type tokens");
-            $callback->(@$token);
-
-            # Start a new transaction at the end of the last token.
-            my $old_peek = $self->{peeked};
-            $stream->begin_reading();
-        }
-    };
-    if ($@) {
-        my $err = $@;
-        if (ref($err) && $err == JSON::Streaming::Reader::EventWrapper::UNDERRUN()) {
-            # Roll back and try again when we get more data.
-            $stream->roll_back_reading();
-            $self->{peeked} = $old_peek;
-            return;
-        }
-        else {
-            # Some other kind of error. Re-throw.
-            die $err;
-        }
-    }
-    else {
-        # We hit EOF without an underrun, so we just need to clean up now.
-        $stream->complete_reading();
-        my $callback = $callbacks->{eof} or Carp::croak("No callback provided for eof");
-        $callback->();
-    }
 }
 
 sub _get_char {
@@ -737,10 +641,6 @@ sub _expecting_property {
     return $_[0]->in_object ? 1 : 0;
 }
 
-sub is_event_based {
-    return defined($_[0]->{event_callbacks});
-}
-
 1;
 
 __END__
@@ -887,17 +787,6 @@ inefficient. Caution is advised when making use of it in production
 applications, since it is currently merely a shim over the existing
 blocking API which may introduce strange packet-boundary bugs
 and other misbehavior.
-
-=head2 JSON::Streaming::Reader->event_based(%callbacks)
-
-Creates and returns an event-based reader. Callbacks are provided in the same way
-as to the C<process_tokens> method in the callback-based API, though
-here there is an additional pseudo-token type called 'eof' which
-signals that the end of the stream has been reached.
-
-Note that at present it is not possible to use the C<skip> or C<slurp> methods
-on an event-based reader, since their implementations expect
-to be able to block. This ought to be fixed in a future version.
 
 =head2 $jsonr->feed_buffer(\$data)
 
