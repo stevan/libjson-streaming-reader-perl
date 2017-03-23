@@ -1,49 +1,56 @@
-
-=head1 NAME
-
-JSON::Streaming::Reader - Read JSON strings in a streaming manner
-
-=cut
-
 package JSON::Streaming::Reader;
 
 use strict;
 use warnings;
-use Carp;
+
+use Carp ();
 use IO::Scalar;
+use UNIVERSAL::Object;
+
 use JSON::Streaming::Reader::EventWrapper;
 
 our $VERSION = '0.06';
 
 use constant ROOT_STATE => {};
 
-# Make some constants for the token types
-BEGIN {
-    foreach my $token_type (qw(start_object end_object start_array end_array start_property end_property add_string add_number add_boolean add_null error)) {
-        no strict 'refs';
+# Token types ...
 
-        my $full_name = __PACKAGE__."::".uc($token_type);
+use constant START_OBJECT   => 'start_object';
+use constant END_OBJECT     => 'end_object';
 
-        *{$full_name} = sub { $token_type };
-    }
-};
+use constant START_ARRAY    => 'start_array';
+use constant END_ARRAY      => 'end_array';
+
+use constant START_PROPERTY => 'start_property';
+use constant END_PROPERTY   => 'end_property';
+
+use constant ADD_STRING     => 'add_string';
+use constant ADD_NUMBER     => 'add_number';
+use constant ADD_BOOLEAN    => 'add_boolean';
+use constant ADD_NULL       => 'add_null';
+
+use constant ERROR          => 'error';
+
+# ...
+
+our @ISA; BEGIN { @ISA = ('UNIVERSAL::Object') }
+our %HAS; BEGIN {
+    %HAS = (
+        stream      => sub { die 'A `stream` must be defined' },
+        state       => \&ROOT_STATE,
+        state_stack => sub { [] },
+        used        => sub { 0  },
+    )
+}
 
 sub for_stream {
     my ($class, $stream) = @_;
-
-    my $self = bless {}, $class;
-    $self->{stream} = $stream;
-    $self->{state} = ROOT_STATE;
-    $self->{state_stack} = [];
-    $self->{used} = 0;
-    return $self;
+    $class->new( stream => $stream );
 }
 
 sub for_string {
     my ($class, $value) = @_;
-
-    my $stream = IO::Scalar->new(ref $value ? $value : \$value);
-    return $class->for_stream($stream);
+    return $class->new( stream => IO::Scalar->new(ref $value ? $value : \$value) );
 }
 
 sub event_based {
