@@ -79,7 +79,7 @@ MAIN_LOOP:
         if ($char eq ',' && ! $self->done_comma) {
             if ($self->in_array || $self->in_object) {
                 if ($self->made_value) {
-                    unless ( defined(_peek_char( $self )) && $self->{buffer} eq ',' ) {
+                    unless ((_peek_char( $self ) // '') eq ',') {
                         $token = [ ERROR, 'Expected , but encountered '.($self->{buffer} //= 'EOF') ];
                         last MAIN_LOOP;
                     }
@@ -122,7 +122,7 @@ MAIN_LOOP:
                 }
                 else {
                     _eat_whitespace( $self );
-                    unless ( defined(_peek_char( $self )) && $self->{buffer} eq ':' ) {
+                    unless ((_peek_char( $self ) // '') eq ':') {
                         $token = [ ERROR, 'Expected : but encountered '.($self->{buffer} //= 'EOF') ];
                         last MAIN_LOOP;
                     }
@@ -139,11 +139,11 @@ MAIN_LOOP:
         }
 
         if ($char eq '{') {
-            unless ( $self->can_start_value ) {
+            unless ($self->can_start_value) {
                 $token = [ ERROR, "Unexpected start of object" ];
             }
             else {
-                unless ( defined(_peek_char( $self )) && $self->{buffer} eq '{' ) {
+                unless ((_peek_char( $self ) // '') eq '{') {
                     $token = [ ERROR, 'Expected { but encountered '.($self->{buffer} //= 'EOF') ];
                     last MAIN_LOOP;
                 }
@@ -178,11 +178,11 @@ MAIN_LOOP:
                     last MAIN_LOOP;
                 }
 
-                unless ( $self->in_object ) {
+                unless ($self->in_object) {
                     $token = [ ERROR, "End of object without matching start" ];
                 }
                 else {
-                    unless ( defined(_peek_char( $self )) && $self->{buffer} eq '}' ) {
+                    unless ((_peek_char( $self ) // '') eq '}') {
                         $token = [ ERROR, 'Expected } but encountered '.($self->{buffer} //= 'EOF') ];
                         last MAIN_LOOP;
                     }
@@ -197,11 +197,11 @@ MAIN_LOOP:
             last MAIN_LOOP;
         }
         elsif ($char eq '[') {
-            unless ( $self->can_start_value ) {
+            unless ($self->can_start_value) {
                 $token = [ ERROR, "Unexpected start of array" ];
             }
             else {
-                unless ( defined(_peek_char( $self )) && $self->{buffer} eq '[' ) {
+                unless ((_peek_char( $self ) // '') eq '[') {
                     $token = [ ERROR, 'Expected [ but encountered '.($self->{buffer} //= 'EOF') ];
                     last MAIN_LOOP;
                 }
@@ -219,11 +219,11 @@ MAIN_LOOP:
                 $token = [ ERROR, "End of array without matching start" ];
             }
             else {
-                if ( $self->done_comma ) {
+                if ($self->done_comma) {
                     $token = [ ERROR, "Expected another value" ];
                 }
                 else {
-                    unless ( defined(_peek_char( $self )) && $self->{buffer} eq ']' ) {
+                    unless ((_peek_char( $self ) // '') eq ']') {
                         $token = [ ERROR, 'Expected ] but encountered '.($self->{buffer} //= 'EOF') ];
                         last MAIN_LOOP;
                     }
@@ -252,16 +252,16 @@ MAIN_LOOP:
             last MAIN_LOOP;
         }
         elsif ($char eq 't') {
-            unless ( $self->can_start_value ) {
+            unless ($self->can_start_value) {
                 $token = [ ERROR, "Unexpected boolean value" ];
             }
             else {
-                if ( $need_comma && ! $self->done_comma ) {
+                if ($need_comma && ! $self->done_comma) {
                     $token = [ ERROR, "Expected ," ];
                 }
                 else {
                     foreach my $c (qw[ t r u e ]) {
-                        unless ( defined(_peek_char( $self )) && $self->{buffer} eq $c ) {
+                        unless ((_peek_char( $self ) // '') eq $c) {
                             $token = [ ERROR, 'Expected '.$c.' but encountered '.($self->{buffer} //= 'EOF') ];
                             last MAIN_LOOP;
                         }
@@ -276,16 +276,16 @@ MAIN_LOOP:
             last MAIN_LOOP;
         }
         elsif ($char eq 'f') {
-            unless ( $self->can_start_value ) {
+            unless ($self->can_start_value) {
                 $token = [ ERROR, "Unexpected boolean value" ];
             }
             else {
-                if ( $need_comma && ! $self->done_comma ) {
+                if ($need_comma && ! $self->done_comma) {
                     $token = [ ERROR, "Expected ," ];
                 }
                 else {
                     foreach my $c (qw[ f a l s e ]) {
-                        unless ( defined(_peek_char( $self )) && $self->{buffer} eq $c ) {
+                        unless ((_peek_char( $self ) // '') eq $c) {
                             $token = [ ERROR, 'Expected '.$c.' but encountered '.($self->{buffer} //= 'EOF') ];
                             last MAIN_LOOP;
                         }
@@ -300,16 +300,16 @@ MAIN_LOOP:
             last MAIN_LOOP;
         }
         elsif ($char eq 'n') {
-            unless ( $self->can_start_value ) {
+            unless ($self->can_start_value) {
                 $token = [ ERROR, "Unexpected null" ];
             }
             else {
-                if ( $need_comma && ! $self->done_comma ) {
+                if ($need_comma && ! $self->done_comma) {
                     $token = [ ERROR, "Expected ," ];
                 }
                 else {
                     foreach my $c (qw[ n u l l ]) {
-                        unless ( defined(_peek_char( $self )) && $self->{buffer} eq $c ) {
+                        unless ((_peek_char( $self ) // '') eq $c) {
                             $token = [ ERROR, 'Expected '.$c.' but encountered '.($self->{buffer} //= 'EOF') ];
                             last MAIN_LOOP;
                         }
