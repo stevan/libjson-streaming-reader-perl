@@ -3,7 +3,6 @@ package JSON::Streaming::Reader;
 use strict;
 use warnings;
 
-use Carp ();
 use IO::Scalar;
 use UNIVERSAL::Object;
 
@@ -701,7 +700,7 @@ sub _parse_string {
 sub _push_state {
     my ($self) = @_;
 
-    Carp::croak("Can't add anything else: JSON output is complete")
+    die "Can't add anything else: JSON output is complete"
         if $self->{state} == ROOT_STATE && $self->{used};
 
     $self->{used} = 1;
@@ -720,10 +719,6 @@ sub _push_state {
 
 sub _pop_state {
     return $_[0]->{state} = pop @{ $_[0]->{state_stack} };
-}
-
-sub _expecting_property {
-    return $_[0]->in_object ? 1 : 0;
 }
 
 sub _set_made_value {
