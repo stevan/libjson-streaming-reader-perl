@@ -10,6 +10,7 @@ use TestUtil;
 
 BEGIN {
     use_ok('JSON::Streaming::Reader');
+    use_ok('JSON::Streaming::Util');
 }
 
 my %correct = (
@@ -43,7 +44,7 @@ my $jsonr = JSON::Streaming::Reader->for_string(\$data);
 while (my $token = $jsonr->get_token) {
     if ( $token->[0] eq JSON::Streaming::Reader->START_PROPERTY ) {
         my $name     = $token->[1];
-        my $value    = $jsonr->slurp();
+        my $value    = JSON::Streaming::Util::slurp( $jsonr );
         my $expected = $correct{$name};
         is_deeply($value, $expected, $name);
     }
