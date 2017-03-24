@@ -233,9 +233,10 @@ sub get_token {
                         $token = [ ERROR, "Expected ," ];
                     }
                     else {
-                        foreach my $c (qw(t r u e)) {
-                            $self->_require_char($c);
-                        }
+                        $self->_require_char('t');
+                        $self->_require_char('r');
+                        $self->_require_char('u');
+                        $self->_require_char('e');
                         $self->_set_made_value();
                         $token = [ ADD_BOOLEAN, 1 ];
                     }
@@ -251,9 +252,11 @@ sub get_token {
                         $token = [ ERROR, "Expected ," ];
                     }
                     else {
-                        foreach my $c (qw(f a l s e)) {
-                            $self->_require_char($c);
-                        }
+                        $self->_require_char('f');
+                        $self->_require_char('a');
+                        $self->_require_char('l');
+                        $self->_require_char('s');
+                        $self->_require_char('e');
                         $self->_set_made_value();
                         $token = [ ADD_BOOLEAN, 0 ];
                     }
@@ -478,25 +481,11 @@ sub slurp {
 
 ## some predicates
 
-sub in_object {
-    return $_[0]->{state}->{in_object} ? 1 : 0;
-}
-
-sub in_array {
-    return $_[0]->{state}->{in_array} ? 1 : 0;
-}
-
-sub in_property {
-    return $_[0]->{state}->{in_property} ? 1 : 0;
-}
-
-sub made_value {
-    return $_[0]->{state}->{made_value} ? 1 : 0;
-}
-
-sub done_comma {
-    return $_[0]->{state}->{done_comma} ? 1 : 0;
-}
+sub in_object   { !! $_[0]->{state}->{in_object}   }
+sub in_array    { !! $_[0]->{state}->{in_array}    }
+sub in_property { !! $_[0]->{state}->{in_property} }
+sub made_value  { !! $_[0]->{state}->{made_value}  }
+sub done_comma  { !! $_[0]->{state}->{done_comma}  }
 
 sub can_start_value {
     return 0 if $_[0]->in_property && $_[0]->made_value;
