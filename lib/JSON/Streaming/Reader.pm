@@ -95,7 +95,7 @@ MAIN_LOOP:
                 # the end of the property. We exit the property state
                 # but leave the comma so that the next get_token
                 # can still see it.
-                unless ( $self->made_value ) {
+                unless ($self->made_value) {
                     $token = [ ERROR, "Property has no value" ];
                 }
                 else {
@@ -167,7 +167,7 @@ MAIN_LOOP:
                 # call to get_token will see it again but it will be
                 # in the is_object state rather than is_property.
                 if ($self->in_property) {
-                    unless ( $self->made_value ) {
+                    unless ($self->made_value) {
                         $token = [ ERROR, "Property has no value" ];
                     }
                     else {
@@ -238,11 +238,11 @@ MAIN_LOOP:
             last MAIN_LOOP;
         }
         elsif ($char eq '"') {
-            unless ( $self->can_start_value ) {
+            unless ($self->can_start_value) {
                 $token = [ ERROR, "Unexpected string value" ];
             }
             else {
-                if ( $need_comma && ! $self->done_comma ) {
+                if ($need_comma && ! $self->done_comma) {
                     $token = [ ERROR, "Expected ," ];
                 }
                 else {
@@ -324,11 +324,11 @@ MAIN_LOOP:
             last MAIN_LOOP;
         }
         elsif ($char =~ /^[\d\-]/) {
-            unless ( $self->can_start_value ) {
+            unless ($self->can_start_value) {
                 $token = [ ERROR, "Unexpected number value" ];
             }
             else {
-                if ( $need_comma && ! $self->done_comma ) {
+                if ($need_comma && ! $self->done_comma) {
                     $token = [ ERROR, "Expected ," ];
                 }
                 else {
@@ -467,8 +467,7 @@ sub _accum_digits {
     my $accum = '';
     while (1) {
         my $c = _peek_char( $_[0] );
-        last unless defined $c;
-        last unless $c =~ /\d/;
+        last unless defined $c && $c =~ /\d/;
         $accum .= $_[0]->{buffer};
         undef $_[0]->{buffer};
     }
