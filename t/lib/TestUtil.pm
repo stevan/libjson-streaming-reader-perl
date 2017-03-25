@@ -29,7 +29,7 @@ sub test_parse {
     Test::More::is_deeply(\@tokens, $expected_tokens, $name);
 
     #use Data::Dumper;
-    #warn Dumper \@tokens;
+    #warn Dumper [ map JSON::Streaming::Tokens::dump_token( $_ ), @tokens ];
 }
 
 1;
