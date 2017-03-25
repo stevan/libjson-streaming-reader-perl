@@ -43,6 +43,36 @@ test_parse "Null", "null", [ [ ADD_NULL ] ];
 test_parse "Array containing number", "[1]", [ [ START_ARRAY ], [ ADD_NUMBER, 1 ], [ END_ARRAY ] ];
 test_parse "Array containing two numbers", "[1,4]", [ [ START_ARRAY ], [ ADD_NUMBER, 1 ], [ ADD_NUMBER, 4 ], [ END_ARRAY ] ];
 test_parse "Array containing null", "[null]", [ [ START_ARRAY ], [ ADD_NULL ], [ END_ARRAY ] ];
+
+test_parse "Array containing strings", '["foo","bar"]', [ [ START_ARRAY ], [ ADD_STRING, "foo" ], [ ADD_STRING, "bar" ], [ END_ARRAY ] ];
+test_parse(
+    "Object with embedded array",
+    q|{
+        "tags": [
+          "incididunt",
+          "fugiat",
+          "nostrud",
+          "sunt",
+          "proident",
+          "ad",
+          "fugiat"
+        ]
+    }|,
+    [[ START_OBJECT ],
+        [ START_PROPERTY, 'tags' ],
+            [ START_ARRAY ],
+                [ ADD_STRING, 'incididunt' ],
+                [ ADD_STRING, 'fugiat' ],
+                [ ADD_STRING, 'nostrud' ],
+                [ ADD_STRING, 'sunt' ],
+                [ ADD_STRING, 'proident' ],
+                [ ADD_STRING, 'ad' ],
+                [ ADD_STRING, 'fugiat' ],
+            [ END_ARRAY ],
+        [ END_PROPERTY ],
+    [ END_OBJECT ]]
+);
+
 test_parse "Array containing an empty array", "[[]]", [ [ START_ARRAY ], [ START_ARRAY ], [ END_ARRAY ], [ END_ARRAY ] ];
 test_parse "Array containing an empty object", "[{}]", [ [ START_ARRAY ], [ START_OBJECT ], [ END_OBJECT ], [ END_ARRAY ] ];
 test_parse "Object containing a string property", '{"hello":"world"}', [
