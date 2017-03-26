@@ -29,7 +29,7 @@ our %HAS; BEGIN {
         state       => \&ROOT_STATE,
         state_stack => sub { [] },
         used        => sub { 0 },
-        buffer      => sub { undef },
+        buffer      => sub { '' },
         errored     => sub { 0 },
     )
 }
@@ -84,7 +84,7 @@ MAIN_LOOP:
                         last MAIN_LOOP;
                     }
                     else {
-                        undef $self->{buffer};
+                        chop $self->{buffer};
                     }
                     _set_done_comma( $self );
                     next;
@@ -127,7 +127,7 @@ MAIN_LOOP:
                         last MAIN_LOOP;
                     }
                     else {
-                        undef $self->{buffer};
+                        chop $self->{buffer};
                     }
                     my $property_name = $name_token->[1];
                     my $state = _push_state( $self );
@@ -148,7 +148,7 @@ MAIN_LOOP:
                     last MAIN_LOOP;
                 }
                 else {
-                    undef $self->{buffer};
+                    chop $self->{buffer};
                 }
                 my $state = _push_state( $self );
                 $state->{in_object} = 1;
@@ -187,7 +187,7 @@ MAIN_LOOP:
                         last MAIN_LOOP;
                     }
                     else {
-                        undef $self->{buffer};
+                        chop $self->{buffer};
                     }
                     _pop_state( $self );
                     _set_made_value( $self );
@@ -206,7 +206,7 @@ MAIN_LOOP:
                     last MAIN_LOOP;
                 }
                 else {
-                    undef $self->{buffer};
+                    chop $self->{buffer};
                 }
                 my $state = _push_state( $self );
                 $state->{in_array} = 1;
@@ -228,7 +228,7 @@ MAIN_LOOP:
                         last MAIN_LOOP;
                     }
                     else {
-                        undef $self->{buffer};
+                        chop $self->{buffer};
                     }
                     _pop_state( $self );
                     _set_made_value( $self );
@@ -262,11 +262,11 @@ MAIN_LOOP:
                 else {
                     foreach my $c (qw[ t r u e ]) {
                         unless ((_peek_char( $self ) // '') eq $c) {
-                            $token = [ ERROR, 'Expected '.$c.' but encountered '.($self->{buffer} //= 'EOF') ];
+                            $token = [ ERROR, 'Expected '.$c.' but encountered '.(_peek_char( $self ) // 'EOF') ];
                             last MAIN_LOOP;
                         }
                         else {
-                            undef $self->{buffer};
+                            chop $self->{buffer};
                         }
                     }
                     _set_made_value( $self );
@@ -286,11 +286,11 @@ MAIN_LOOP:
                 else {
                     foreach my $c (qw[ f a l s e ]) {
                         unless ((_peek_char( $self ) // '') eq $c) {
-                            $token = [ ERROR, 'Expected '.$c.' but encountered '.($self->{buffer} //= 'EOF') ];
+                            $token = [ ERROR, 'Expected '.$c.' but encountered '.(_peek_char( $self ) // 'EOF') ];
                             last MAIN_LOOP;
                         }
                         else {
-                            undef $self->{buffer};
+                            chop $self->{buffer};
                         }
                     }
                     _set_made_value( $self );
@@ -310,11 +310,11 @@ MAIN_LOOP:
                 else {
                     foreach my $c (qw[ n u l l ]) {
                         unless ((_peek_char( $self ) // '') eq $c) {
-                            $token = [ ERROR, 'Expected '.$c.' but encountered '.($self->{buffer} //= 'EOF') ];
+                            $token = [ ERROR, 'Expected '.$c.' but encountered '.(_peek_char( $self ) // 'EOF') ];
                             last MAIN_LOOP;
                         }
                         else {
-                            undef $self->{buffer};
+                            chop $self->{buffer};
                         }
                     }
                     _set_made_value( $self );
@@ -428,32 +428,26 @@ sub can_start_value {
 ## Internals ...
 
 sub _discard_char {
-    defined $_[0]->{buffer}
-        ? undef $_[0]->{buffer}
+    $_[0]->{buffer} ne ''
+        ? chop $_[0]->{buffer}
         : $_[0]->{stream}->seek( 1, 1 );
     return;
 }
 
 sub _get_char {
-    my $char = '';
-    $char = $_[0]->{buffer} if defined $_[0]->{buffer};
-    undef $_[0]->{buffer};
-    return $char if $char;
-    return undef unless $_[0]->{stream}->read( $char, 1 );
-    return $char;
+    $_[0]->{buffer} ne ''
+        ? chop( $_[0]->{buffer} )
+        : $_[0]->{stream}->read( $_[0]->{buffer}, 1 )
+            ? chop( $_[0]->{buffer} )
+            : undef
 }
 
 sub _peek_char {
-    return $_[0]->{buffer} if defined $_[0]->{buffer};
-    return undef unless $_[0]->{stream}->read( my $buf, 1 );
-    return $_[0]->{buffer} = $buf;
-}
-
-sub _require_char {
-    my $char = _get_char( $_[0] );
-    die 'Expected '.$_[1].' but encountered '.($char //= 'EOF')."\n"
-        unless defined $char && $char eq $_[1];
-    return;
+     $_[0]->{buffer} ne ''
+        ? $_[0]->{buffer}
+        : $_[0]->{stream}->read( $_[0]->{buffer}, 1 )
+            ? $_[0]->{buffer}
+            : undef
 }
 
 sub _eat_whitespace {
@@ -470,7 +464,7 @@ sub _accum_digits {
         my $c = _peek_char( $_[0] );
         last unless defined $c && $c =~ /\d/;
         $accum .= $_[0]->{buffer};
-        undef $_[0]->{buffer};
+        chop $_[0]->{buffer};
     }
     return $accum;
 }
@@ -483,21 +477,21 @@ sub _get_number_token {
     $char = _peek_char( $_[0] );
     if ( defined $char && $char eq '-' ) {
         push @acc, $char;
-        undef $_[0]->{buffer};
+        chop $_[0]->{buffer};
     }
 
     $digit = _accum_digits( $_[0] );
-    return [ ERROR, 'Expected digits but got '.($_[0]->{buffer} // 'EOF') ]
+    return [ ERROR, 'Expected digits but got '.($_[0]->{buffer} || 'EOF') ]
         if $digit eq '';
     push @acc, $digit;
 
     $char = _peek_char( $_[0] );
     if ( defined $char && $char eq '.' ) {
         push @acc, $char;
-        undef $_[0]->{buffer};
+        chop $_[0]->{buffer};
 
         $digit = _accum_digits( $_[0] );
-        return [ ERROR, 'Expected digits but got '.($_[0]->{buffer} // 'EOF') ]
+        return [ ERROR, 'Expected digits but got '.($_[0]->{buffer} || 'EOF') ]
             if $digit eq '';
         push @acc, $digit;
     }
@@ -505,16 +499,16 @@ sub _get_number_token {
     $char = _peek_char( $_[0] );
     if ( defined $char && $char =~ /e/i ) {
         push @acc, $char;
-        undef $_[0]->{buffer};
+        chop $_[0]->{buffer};
 
         $char = _peek_char( $_[0] );
         if ( defined $char && ($char eq '+' || $char eq '-') ) {
             push @acc, $char;
-            undef $_[0]->{buffer};
+            chop $_[0]->{buffer};
         }
 
         $digit = _accum_digits( $_[0] );
-        return [ ERROR, 'Expected digits but got '.($_[0]->{buffer} // 'EOF') ]
+        return [ ERROR, 'Expected digits but got '.($_[0]->{buffer} || 'EOF') ]
             if $digit eq '';
         push @acc, $digit;
     }
