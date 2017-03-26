@@ -379,7 +379,7 @@ sub skip {
             my $skipped_value = $self->in_object || $self->in_array;
             _pop_state( $self );
             _set_made_value( $self ) if $skipped_value;
-            return;
+            last;
         }
         else {
             $start_chars++ if $peek eq '[' || $peek eq '{';
@@ -388,6 +388,7 @@ sub skip {
         }
     }
 
+    return $self;
 }
 
 sub _discard_string {
