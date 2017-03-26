@@ -7,8 +7,7 @@ use Scalar::Util;
 
 our $VERSION = '0.01';
 
-our ( @EXPORTS, %TOKEN_MAP, %TOKEN_LKUP );
-
+our ( @EXPORTS, %TOKEN_MAP );
 BEGIN {
     %TOKEN_MAP = (
         START_OBJECT   => Scalar::Util::dualvar( 0b00000000001, 'START_OBJECT'   ),
@@ -24,8 +23,7 @@ BEGIN {
         ERROR          => Scalar::Util::dualvar( 0b10000000000, 'ERROR'          ),
     );
 
-    %TOKEN_LKUP = reverse %TOKEN_MAP;
-    @EXPORTS    = keys %TOKEN_MAP;
+    @EXPORTS = keys %TOKEN_MAP;
 
     foreach my $name ( keys %TOKEN_MAP ) {
         no strict 'refs';
@@ -39,13 +37,7 @@ sub import_into {
     my (undef, $into, @exports) = @_;
     @exports = @EXPORTS unless @exports;
     no strict 'refs';
-    # it helps to have the token types in the tests ...
     *{$into.'::'.$_} = \&{$_} foreach @exports;
-}
-
-sub dump_token ($) {
-    my ($type, @args) = @{$_[0]};
-    join ' ' => $TOKEN_LKUP{ $type }, @args
 }
 
 1;
